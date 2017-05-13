@@ -3,6 +3,8 @@ from splitwise import Splitwise
 from splitwise.expense import Expense
 from splitwise.user import ExpenseUser
 
+import random
+
 USER_TOKEN = ''
 USER_SECRET = ''
 
@@ -17,6 +19,11 @@ OUTPUT = "New Expense has been added between You and "
 EQUALLY = "equally"
 BOT = "From Bot"
 NAME = "name"
+GREETING1 = "Hey, How can i help you?"
+GREETING2 = "Hello, may i help you any way?"
+GREETING3 = "Hi, you need any help?"
+
+
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
 
     def __init__(self):
@@ -97,3 +104,14 @@ class TransactionProcessor(BaseProcessor):
         user.setPaidShare(str(paid))
         user.setOwedShare(str(owed))
         return user
+
+class GreetingProcessor(BaseProcessor):
+    
+    def __init__(self):
+        self.greetings = []
+        self.greetings.append(GREETING1)
+        self.greetings.append(GREETING2)
+        self.greetings.append(GREETING3)
+    
+    def process(self, input):
+        return random.choice(self.greetings)
