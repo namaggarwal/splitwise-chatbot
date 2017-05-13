@@ -6,10 +6,10 @@ class BotController(object):
         self.processorFactory = processorFactory
         self.messenger = messenger
 
-    def parse(request):
+    def parse(self,request):
         #NLP
         request = self.beforeConvert(request)
-        action, structuredData = self.converter(request)
+        action, structuredData = self.converter.convert(request)
 
         #GenerateResponse
         action, structuredData = self.beforeProcess(action,structuredData)
@@ -18,7 +18,7 @@ class BotController(object):
         
         #Send Message
         response = self.beforeSend(response)
-        self.messenger.send(senderId,response)
+        self.messenger.send(self.senderId,response)
 
     def beforeConvert(self,request):
         return request
