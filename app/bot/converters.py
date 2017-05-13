@@ -1,3 +1,8 @@
 class BaseConverter(object):
-    def convert(self,text):
+    '''
+    Base class to call the NLP engine  
+    Return: action and structured data
+    '''
+
+    def convert(self, text):
         pass
