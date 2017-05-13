@@ -28,7 +28,7 @@ def facebookVerify():
         #Return Not found
         abort(404)
 
-        
 
-
-    
+@pages.route("/messenger", methods=['POST'])
+def facebookMessage():
+    return ('',204)
