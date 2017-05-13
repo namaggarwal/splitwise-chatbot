@@ -4,5 +4,5 @@ class BaseConverter(object):
     Return: action and structured data
     '''
 
-    def convert(self, text):
+    def convert(self, request):
         pass

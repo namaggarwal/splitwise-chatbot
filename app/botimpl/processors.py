@@ -32,6 +32,8 @@ class SplitwiseBotProcessorFactory(BotProcessorFactory):
     def getProcessor(self, action):
         if action == 'transaction':
             return TransactionProcessor()
+        elif action == 'greeting':
+            return GreetingProcessor()
 
 
 class TransactionProcessor(BaseProcessor):

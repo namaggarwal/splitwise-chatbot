@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, abort, request, current_app as app
 from model import User
 from botimpl import ChatBotController, FacebookMessenger
+import json
 
 pages = Blueprint('pages', __name__,template_folder='templates')
 
@@ -31,4 +32,12 @@ def facebookVerify():
 
 @pages.route("/messenger", methods=['POST'])
 def facebookMessage():
+    try:
+        data = json.loads(request.data)
+        senderId = FacebookMessenger.getSenderId(data)
+        bot = ChatBotController(senderId)
+        bot.parse(data)
+    except Exception as e:
+        print e
+        
     return ('',204)
