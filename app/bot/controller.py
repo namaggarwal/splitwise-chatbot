@@ -13,7 +13,7 @@ class BotController(object):
 
         #GenerateResponse
         action, structuredData = self.beforeProcess(action,structuredData)
-        processor = self.processorFactory.getProcessor(action)
+        processor = self.processorFactory(action)
         response = processor.process(structuredData)
         
         #Send Message
