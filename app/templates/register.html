@@ -1,0 +1,22 @@
+{% from "_formhelpers.html" import render_field %}
+
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+  <div class="jumbotron">
+    <h2>Flask Application - Register</h2>
+  </div>
+  <div class="buttonCont" style="text-align:center;margin-top:10%">
+    <form action="" method="post">
+
+      {{ render_field(form.email) }}
+      {{ render_field(form.password) }}
+      {{ render_field(form.confirmPass) }}
+      {{ form.csrf_token }}
+      <br>
+      <p><input type=submit value=Register></p>
+    </form>
+
+  </div>
+
+{% endblock %}

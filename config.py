@@ -1,0 +1,4 @@
+FLASK_SECRET_KEY = 'namana'
+DATABASE_URI = 'sqlite:///test.db'
+DEBUG = True
+SQLALCHEMY_TRACK_MODIFICATIONS = False
