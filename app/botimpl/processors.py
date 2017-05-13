@@ -21,13 +21,13 @@ BOT = "From Bot"
 NAME = "name"
 GREETING1 = "Hey, How can i help you?"
 GREETING2 = "Hello, may i help you any way?"
-GREETING3 = "Hi, you need any help?"
+GREETING3 = "Hi, do you need any help?"
 
 
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
 
     def __init__(self):
-        pass
+        super(SplitwiseBotProcessorFactory, self).__init__()
 
     def getProcessor(self, action):
         if action == 'transaction':
@@ -107,6 +107,7 @@ class TransactionProcessor(BaseProcessor):
         user.setOwedShare(str(owed))
         return user
 
+
 class GreetingProcessor(BaseProcessor):
     
     def __init__(self):
@@ -114,6 +115,6 @@ class GreetingProcessor(BaseProcessor):
         self.greetings.append(GREETING1)
         self.greetings.append(GREETING2)
         self.greetings.append(GREETING3)
-    
+
     def process(self, input):
         return random.choice(self.greetings)
