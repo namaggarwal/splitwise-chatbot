@@ -23,6 +23,9 @@ class TestProcessors(unittest.TestCase):
         result = agg_obj.process(input)
         print result
 
+    def test_debtProcessor(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

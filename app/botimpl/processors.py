@@ -148,23 +148,64 @@ class AggregationProcessor(BaseProcessor):
         if self.LIMIT in input:
             limit = input.get(self.LIMIT)
         allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
+        dc = {}
+        for expense in allExpense:
+            owedshare = self.getOwedShare(expense.getUsers(), currentuser.getId())
+            if not owedshare is None:
+                code = expense.getCurrencyCode()
+                if code in dc:
+                    dc[code] +=float(owedshare)
+                else:
+                    dc[code] = float(owedshare)
+        output = ''
+        for key, value in dc.iteritems():
+            output = str(key)+SPACE+str(value)+"\n"
+
+        return  output
+    def getOwedShare(self, userList, currentUserId):
+        for expenseuser in userList:
+            if expenseuser.getId() == currentUserId:
+                return expenseuser.getOwedShare()
+
+
+class ListTransactionProcessor(BaseProcessor):
+    LIMIT = 'limit'
+    DAYS = 'days'
+
+    def __init__(self):
+        pass
+
+    def process(self, input):
+        splitwiseobj = Splitwise(APP_KEY, APP_SECRET)
+        splitwiseobj.setAccessToken(
+            {
+                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
+            }
+        )
+        currentuser = splitwiseobj.getCurrentUser()
+        days = 7
+        if self.DAYS in input:
+            days = input.get(self.DAYS)
+        date = datetime.now() - timedelta(days=days)
+        limit = 100
+
+        if self.LIMIT in input:
+            limit = input.get(self.LIMIT)
+        allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
         output = EXPENSE_SUMMARY + '\n'
+        agg = AggregationProcessor()
         for expense in allExpense:
             date = expense.getDate()
             dateob = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
             output += dateob.strftime('%Y-%m-%d') + ": "
             output += YOU + SPACE + OWE + SPACE + expense.getCurrencyCode() + SPACE
-            owedshare = self.getOwedShare(expense.getUsers(), currentuser.getId())
+            owedshare = agg.getOwedShare(expense.getUsers(), currentuser.getId())
             if owedshare is None:
                 owedshare=0.0
             output += str(owedshare) + SPACE+ FOR + SPACE + expense.getDescription() + "\n"
 
         return output
 
-    def getOwedShare(self, userList, currentUserId):
-        for expenseuser in userList:
-            if expenseuser.getId() == currentUserId:
-                return expenseuser.getOwedShare()
 
 
 class DebtProcessor(BaseProcessor):
