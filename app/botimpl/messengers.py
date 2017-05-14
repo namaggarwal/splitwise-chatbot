@@ -1,14 +1,17 @@
 from app.bot import BaseMessenger
 import requests
+import json
 
 class FacebookMessenger(BaseMessenger):
 
     FACEBOOK_MESSAGE_URL = 'https://graph.facebook.com/v2.6/me/messages?'
+    FACEBOOK_ACCOUNT_LINK_URL = 'https://graph.facebook.com/v2.6/me?access_token=PAGE_ACCESS_TOKEN&fields=recipient&account_linking_token=ACCOUNT_LINKING_TOKEN'
 
     def __init__(self,pageAccessToken=None,verifyToken=None):
         self.pageAccessToken = pageAccessToken
         self.verifyToken = verifyToken
         self.messageUrl =  FacebookMessenger.FACEBOOK_MESSAGE_URL+'access_token='+pageAccessToken
+        self.accountUrl =  FacebookMessenger.FACEBOOK_ACCOUNT_LINK_URL.replace('PAGE_ACCESS_TOKEN',pageAccessToken)
 
     def getVerifyToken(self):
         return self.verifyToken
@@ -43,6 +46,41 @@ class FacebookMessenger(BaseMessenger):
         
         return message
 
+    
+    def getRecepientId(self,account_linking_token):
+
+        url = self.accountUrl.replace("ACCOUNT_LINKING_TOKEN",account_linking_token)
+        print url
+        res = requests.get(url)
+        print res.content
+        res = json.loads(res.content)
+        return res["recipient"]
+
+
+    def sendLoginLink(self,receiverId):
+        messageData = {
+            'recipient': {
+                'id': int(receiverId)
+            },
+             
+            'message': {
+                "attachment":{
+                    "type":"template",
+                    "payload":{
+                        "template_type":"button",
+                        "text":"Please Login to Splitwise",
+                        "buttons":[
+                            {
+                                "type": "account_link",
+                                "url": "https://a0731dab.ngrok.io/splitwise"
+                            }
+                        ]
+                    }
+                },
+            },
+        }
+        
+        res = requests.post(self.messageUrl, json = messageData)
 
     def send(self,receiverId,message):
         
