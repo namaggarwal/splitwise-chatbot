@@ -6,12 +6,7 @@ from splitwise.group import Group
 from splitwise.debt import Debt
 import random
 from datetime import datetime, timedelta
-
-USER_TOKEN = ''
-USER_SECRET = ''
-
-APP_KEY = ''
-APP_SECRET = ''
+from botsplitwise import BotSplitwise
 
 DESC = "description"
 SPLIT = "split"
@@ -40,6 +35,12 @@ class SplitwiseBotProcessorFactory(BotProcessorFactory):
             return TransactionProcessor()
         elif action == 'greeting':
             return GreetingProcessor()
+        elif action == 'aggregation':
+            return AggregationProcessor()
+        elif action == 'listexpense':
+            return ListTransactionProcessor()
+        else:
+            return UnknownProcessor()
 
 
 class TransactionProcessor(BaseProcessor):
@@ -48,22 +49,29 @@ class TransactionProcessor(BaseProcessor):
 
     def process(self, input):
         output = OUTPUT
-        splitwiseobj = Splitwise(APP_KEY, APP_SECRET)
-        splitwiseobj.setAccessToken(
-            {
-                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
-            }
-        )
+        splitwiseobj = BotSplitwise.getSplitwiseObj(input['user_id'])
         currentUser = splitwiseobj.getCurrentUser()
         friendslist = splitwiseobj.getFriends()
 
         userlist = []
-        amount = input.get(AMOUNT)
+        if 'result' in input:
+            result = input['result']
+            if 'parameters' in result:
+                parameters = result['parameters']
+                if not AMOUNT in parameters:
+                    return "Please enter the amount"
+                if not NAME in parameters:
+                    return "Please enter the name of the person you "
+                name = str(parameters[NAME])
+                split = str(parameters[SPLIT])
+                amount = int(parameters[AMOUNT])
+
+        #amount = input.get(AMOUNT)
 
         expense = Expense()
         expense.setCost(amount)
 
-        mode = input.get(SPLIT).lower()
+        mode = split.lower()
 
         description = ''
         if DESC in input:
@@ -79,7 +87,7 @@ class TransactionProcessor(BaseProcessor):
         userlist.append(cuser)
 
         for friend in friendslist:
-            if friend.getFirstName().lower() == input.get(NAME).lower():
+            if friend.getFirstName().lower() == name.lower():
                 expenseuser = self.getExpenseUser(friend, owed, paid)
                 if mode != PAID and mode != OWE:
                     expenseuser.setPaidShare(str(0))
@@ -132,21 +140,17 @@ class AggregationProcessor(BaseProcessor):
         pass
 
     def process(self, input):
-        splitwiseobj = Splitwise(APP_KEY, APP_SECRET)
-        splitwiseobj.setAccessToken(
-            {
-                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
-            }
-        )
+        splitwiseobj = BotSplitwise.getSplitwiseObj(input['user_id'])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
-        if self.DAYS in input:
-            days = input.get(self.DAYS)
+        if 'result' in input:
+            result = input['result']
+            if 'parameters' in result:
+                parameters = result['parameters']
+                days = int(parameters[self.DAYS])
+
         date = datetime.now() - timedelta(days=days)
         limit = 100
-
-        if self.LIMIT in input:
-            limit = input.get(self.LIMIT)
         allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
         dc = {}
         for expense in allExpense:
@@ -154,14 +158,15 @@ class AggregationProcessor(BaseProcessor):
             if not owedshare is None:
                 code = expense.getCurrencyCode()
                 if code in dc:
-                    dc[code] +=float(owedshare)
+                    dc[code] += float(owedshare)
                 else:
                     dc[code] = float(owedshare)
-        output = ''
+        output = currentuser.getDefaultCurrency()+" 0.0"
         for key, value in dc.iteritems():
-            output = str(key)+SPACE+str(value)+"\n"
+            output = str(key) + SPACE + str(value) + "\n"
 
-        return  output
+        return output
+
     def getOwedShare(self, userList, currentUserId):
         for expenseuser in userList:
             if expenseuser.getId() == currentUserId:
@@ -176,12 +181,7 @@ class ListTransactionProcessor(BaseProcessor):
         pass
 
     def process(self, input):
-        splitwiseobj = Splitwise(APP_KEY, APP_SECRET)
-        splitwiseobj.setAccessToken(
-            {
-                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
-            }
-        )
+        splitwiseobj = BotSplitwise.getSplitwiseObj(input['user_id'])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
         if self.DAYS in input:
@@ -201,11 +201,10 @@ class ListTransactionProcessor(BaseProcessor):
             output += YOU + SPACE + OWE + SPACE + expense.getCurrencyCode() + SPACE
             owedshare = agg.getOwedShare(expense.getUsers(), currentuser.getId())
             if owedshare is None:
-                owedshare=0.0
-            output += str(owedshare) + SPACE+ FOR + SPACE + expense.getDescription() + "\n"
+                owedshare = 0.0
+            output += str(owedshare) + SPACE + FOR + SPACE + expense.getDescription() + "\n"
 
         return output
-
 
 
 class DebtProcessor(BaseProcessor):
@@ -230,3 +229,16 @@ class DebtProcessor(BaseProcessor):
                 user = splitwiseobj.getUser(debts.getToUser())
                 print user.getFirstName() + " " + str(debts.getCurrencyCode()) + " " + debts.getAmount()
             print "================================="
+
+
+class UnknownProcessor(BaseProcessor):
+    MSG1 = "Sorry, I didn't understand that"
+    MSG2 = "Apologies, I missed that"
+
+    def __init__(self):
+        self.message = []
+        self.message.append(self.MSG1)
+        self.message.append(self.MSG2)
+
+    def process(self, input):
+        return random.choice(self.message)

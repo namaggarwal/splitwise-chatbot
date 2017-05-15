@@ -3,6 +3,7 @@ from converters import ApiAiConverter
 from messengers import FacebookMessenger
 from processors import SplitwiseBotProcessorFactory
 from flask import current_app as app
+import pprint
 
 class ChatBotController(BotController):
 
@@ -20,6 +21,7 @@ class ChatBotController(BotController):
         return request
 
     def beforeProcess(self,action,structuredData):
+        structuredData['user_id'] = self.senderId
         return action, structuredData
 
     def beforeSend(self,response):
