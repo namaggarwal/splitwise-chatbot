@@ -70,13 +70,13 @@ class TransactionProcessor(BaseProcessor):
                     return "Please enter whether you paid or owe"
                 split = str(parameters.get(SPLIT, PAID))
                 if not AMOUNT in parameters or len(parameters[AMOUNT]) == 0:
-                    return self.amountError(split)
+                    return self.getAmountError(split)
                 if not NAME in parameters or len(parameters[NAME]) == 0:
                     return "Please enter the name of the person"
 
                 name = str(parameters.get(NAME))
                 amount = str(parameters[AMOUNT])
-                description = str(parameters.get(DESC))
+                description = str(parameters.get(DESC,BOT))
 
 
         expense = Expense()
@@ -84,7 +84,7 @@ class TransactionProcessor(BaseProcessor):
 
         mode = split.lower()
 
-        if description =="" or len(description)==0:
+        if description is None or description =="" or len(description)==0:
             description = BOT
 
         expense.setDescription(description)
@@ -140,8 +140,10 @@ class TransactionProcessor(BaseProcessor):
         errors = []
         E1 = "Please enter the amount"
         E2 = "I didn't find the amount you "+split
-        E3 = "how much amount did you "+split
-        errors.append(E3,E2,E1)
+        E3 = "how much did you ?"+split
+        errors.append(E3)
+        errors.append(E2)
+        errors.append(E1)
         return random.choice(errors)
 
 
@@ -252,31 +254,6 @@ class ListTransactionProcessor(BaseProcessor):
         output += str(totalresp)
         return output
 
-
-class DebtProcessor(BaseProcessor):
-    def __init__(self):
-        pass
-
-    def process(self, input):
-        splitwiseobj = Splitwise(APP_KEY, APP_SECRET)
-        splitwiseobj.setAccessToken(
-            {
-                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
-            }
-        )
-        grouplist = splitwiseobj.getGroups()
-        currentUser = splitwiseobj.getCurrentUser()
-        for group in grouplist:
-            debtList = group.getSimplifiedDebts()
-            print "In Group " + group.getName()
-            for debts in debtList:
-                if debts.getFromUser() != currentUser.id:
-                    continue
-                user = splitwiseobj.getUser(debts.getToUser())
-                print user.getFirstName() + " " + str(debts.getCurrencyCode()) + " " + debts.getAmount()
-            print "================================="
-
-
 class UnknownProcessor(BaseProcessor):
     MSG1 = "Sorry, I didn't understand that"
     MSG2 = "Apologies, I missed that, could you please repeat"
@@ -288,18 +265,4 @@ class UnknownProcessor(BaseProcessor):
 
     def process(self, input):
         return random.choice(self.message)
-
-class MusicProcessor(BaseProcessor):
-
-    def __init__(self):
-        pass
-
-    def process(self,input):
-        result = {}
-        artist = ''
-        if "result" in input:
-            result = input["result"]
-            artist = result["parameters"]["artist"]
-
-        return "You were referring to "+artist
 

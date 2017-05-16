@@ -50,9 +50,7 @@ class FacebookMessenger(BaseMessenger):
     def getRecepientId(self,account_linking_token):
 
         url = self.accountUrl.replace("ACCOUNT_LINKING_TOKEN",account_linking_token)
-        print url
         res = requests.get(url)
-        print res.content
         res = json.loads(res.content)
         return res["recipient"]
 
@@ -93,4 +91,3 @@ class FacebookMessenger(BaseMessenger):
             }
         }
         res = requests.post(self.messageUrl, json = messageData)
-

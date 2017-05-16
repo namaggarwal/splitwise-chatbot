@@ -16,9 +16,4 @@ class BotSplitwise(object):
                 "oauth_token": user.splitwise_token, "oauth_token_secret": user.splitwise_token_secret
             }
         )
-        splitwise.setAccessToken(
-            {
-                "oauth_token": USER_TOKEN, "oauth_token_secret": USER_SECRET
-            }
-        )
         return splitwise
