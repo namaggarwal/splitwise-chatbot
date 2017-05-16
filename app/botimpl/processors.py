@@ -39,6 +39,8 @@ class SplitwiseBotProcessorFactory(BotProcessorFactory):
             return AggregationProcessor()
         elif action == 'listexpense':
             return ListTransactionProcessor()
+        elif action == 'music':
+            return MusicProcessor()
         else:
             return UnknownProcessor()
 
@@ -54,29 +56,35 @@ class TransactionProcessor(BaseProcessor):
         friendslist = splitwiseobj.getFriends()
 
         userlist = []
+        split = 'paid'
+        amount = 0
+        name = ''
+        description = ''
+
+
         if 'result' in input:
             result = input['result']
             if 'parameters' in result:
                 parameters = result['parameters']
-                if not AMOUNT in parameters:
-                    return "Please enter the amount"
-                if not NAME in parameters:
-                    return "Please enter the name of the person you "
-                name = str(parameters[NAME])
-                split = str(parameters[SPLIT])
-                amount = int(parameters[AMOUNT])
+                if not SPLIT in parameters or len(parameters[SPLIT]) == 0:
+                    return "Please enter whether you paid or owe"
+                split = str(parameters.get(SPLIT, PAID))
+                if not AMOUNT in parameters or len(parameters[AMOUNT]) == 0:
+                    return self.amountError(split)
+                if not NAME in parameters or len(parameters[NAME]) == 0:
+                    return "Please enter the name of the person"
 
-        #amount = input.get(AMOUNT)
+                name = str(parameters.get(NAME))
+                amount = str(parameters[AMOUNT])
+                description = str(parameters.get(DESC))
+
 
         expense = Expense()
         expense.setCost(amount)
 
         mode = split.lower()
 
-        description = ''
-        if DESC in input:
-            description = input.get(DESC)
-        else:
+        if description =="" or len(description)==0:
             description = BOT
 
         expense.setDescription(description)
@@ -86,9 +94,11 @@ class TransactionProcessor(BaseProcessor):
         cuser = self.getExpenseUser(currentUser, paid, owed)
         userlist.append(cuser)
 
+        match = False
         for friend in friendslist:
             if friend.getFirstName().lower() == name.lower():
                 expenseuser = self.getExpenseUser(friend, owed, paid)
+                match = True
                 if mode != PAID and mode != OWE:
                     expenseuser.setPaidShare(str(0))
                     expenseuser.setOwedShare(str(owed))
@@ -97,8 +107,14 @@ class TransactionProcessor(BaseProcessor):
                 userlist.append(expenseuser)
                 break
 
+        if not match:
+            return "You don't have any friend named '"+ name+"'"
+
+
         expense.setUsers(userlist)
         expense = splitwiseobj.createExpense(expense)
+        if expense.getId() is None or len(str(expense.getId()))==0:
+            return "Oops Sorry ! Some error has Occured"
         return output
 
     def getDistribution(self, mode, amount):
@@ -119,6 +135,14 @@ class TransactionProcessor(BaseProcessor):
         user.setPaidShare(str(paid))
         user.setOwedShare(str(owed))
         return user
+
+    def getAmountError(self, split):
+        errors = []
+        E1 = "Please enter the amount"
+        E2 = "I didn't find the amount you "+split
+        E3 = "how much amount did you "+split
+        errors.append(E3,E2,E1)
+        return random.choice(errors)
 
 
 class GreetingProcessor(BaseProcessor):
@@ -154,6 +178,8 @@ class AggregationProcessor(BaseProcessor):
         allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
         dc = {}
         for expense in allExpense:
+            if not expense.getDeletedAt() is None:
+                continue
             owedshare = self.getOwedShare(expense.getUsers(), currentuser.getId())
             if not owedshare is None:
                 code = expense.getCurrencyCode()
@@ -161,11 +187,12 @@ class AggregationProcessor(BaseProcessor):
                     dc[code] += float(owedshare)
                 else:
                     dc[code] = float(owedshare)
-        output = currentuser.getDefaultCurrency()+" 0.0"
+        response = "Showing expense for Last " + str(days) + SPACE + self.DAYS + "\n"
+        output = currentuser.getDefaultCurrency() + " 0.0"
         for key, value in dc.iteritems():
             output = str(key) + SPACE + str(value) + "\n"
 
-        return output
+        return response + output
 
     def getOwedShare(self, userList, currentUserId):
         for expenseuser in userList:
@@ -184,26 +211,45 @@ class ListTransactionProcessor(BaseProcessor):
         splitwiseobj = BotSplitwise.getSplitwiseObj(input['user_id'])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
-        if self.DAYS in input:
-            days = input.get(self.DAYS)
-        date = datetime.now() - timedelta(days=days)
-        limit = 100
+        if 'result' in input:
+            result = input['result']
+            if 'parameters' in result:
+                parameters = result['parameters']
+                days = int(parameters[self.DAYS])
+        if days ==0:
+            days = 7
 
-        if self.LIMIT in input:
-            limit = input.get(self.LIMIT)
+        date = datetime.now() - timedelta(days=days)
+        limit = 1000
+
         allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
-        output = EXPENSE_SUMMARY + '\n'
         agg = AggregationProcessor()
+        outputdc = {}
+        totalOwe = 0
         for expense in allExpense:
-            date = expense.getDate()
-            dateob = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-            output += dateob.strftime('%Y-%m-%d') + ": "
-            output += YOU + SPACE + OWE + SPACE + expense.getCurrencyCode() + SPACE
+            if not expense.getDeletedAt() is None:
+                continue
             owedshare = agg.getOwedShare(expense.getUsers(), currentuser.getId())
             if owedshare is None:
-                owedshare = 0.0
-            output += str(owedshare) + SPACE + FOR + SPACE + expense.getDescription() + "\n"
+                continue
+            totalOwe += float(owedshare)
+            date = expense.getDate()
+            dateob = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+            dateob = dateob.strftime('%Y-%m-%d')
+            #output += dateob + ": "
+            output = expense.getDescription()+SPACE+"="+SPACE+expense.getCurrencyCode() + SPACE + str(owedshare)  + "\n"
+            if dateob in outputdc:
+                outputdc[dateob] += output
+            else:
+                outputdc[dateob] = output
+        output = EXPENSE_SUMMARY + SPACE+ FOR + SPACE + "last " + str(days) + SPACE + self.DAYS + "\n"
+        outputdc = sorted(outputdc.items())
+        for key,value in outputdc:
+            output += "\nDate: " +str(key) + "\n"
+            output += value
 
+        totalresp = "\nTotal expenditure is "+currentuser.getDefaultCurrency()+SPACE + str(totalOwe)
+        output += str(totalresp)
         return output
 
 
@@ -233,7 +279,7 @@ class DebtProcessor(BaseProcessor):
 
 class UnknownProcessor(BaseProcessor):
     MSG1 = "Sorry, I didn't understand that"
-    MSG2 = "Apologies, I missed that"
+    MSG2 = "Apologies, I missed that, could you please repeat"
 
     def __init__(self):
         self.message = []
@@ -242,3 +288,18 @@ class UnknownProcessor(BaseProcessor):
 
     def process(self, input):
         return random.choice(self.message)
+
+class MusicProcessor(BaseProcessor):
+
+    def __init__(self):
+        pass
+
+    def process(self,input):
+        result = {}
+        artist = ''
+        if "result" in input:
+            result = input["result"]
+            artist = result["parameters"]["artist"]
+
+        return "You were referring to "+artist
+
