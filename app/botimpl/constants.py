@@ -23,7 +23,7 @@ ERROR_NAME = "Please enter the name of the person"
 ERROR_SPLIT = "Please enter whether you paid or owe"
 
 GREETING1 = "Hey, How can i help you?"
-GREETING2 = "Hello, may i help you any way?"
+GREETING2 = "Hello, may i help you in any way?"
 GREETING3 = "Hi, do you need any help?"
 
 AMOUNT_ERROR1 = "Please enter the amount"
@@ -42,3 +42,6 @@ EQUAL = "="
 # Unknown Processor
 UNKNOWN_ERROR1 = "Sorry, I didn't understand that"
 UNKNOWN_ERROR2 = "Apologies, I missed that, could you please repeat"
+
+
+LOGIN_SUCCESS = "Congratulations, You are logged in."

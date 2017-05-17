@@ -10,6 +10,7 @@ from botsplitwise import BotSplitwise
 from botexception import BotException
 import constants
 import processortype
+from flask import current_app as app
 
 
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
@@ -34,6 +35,7 @@ class TransactionProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+        app.logger.debug("Processing New Transaction Request")
         output = constants.OUTPUT
         splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
         currentUser = splitwiseobj.getCurrentUser()
@@ -100,6 +102,7 @@ class TransactionProcessor(BaseProcessor):
         expense = splitwiseobj.createExpense(expense)
         if expense.getId() is None or len(str(expense.getId())) == 0:
             raise BotException(constants.GENERAL_ERROR)
+        app.logger.debug("New Expense is created")
         return output
 
     def getdistribution(self, mode, amount):
@@ -138,6 +141,7 @@ class GreetingProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+        app.logger.debug("Processing Greeting Request")
         return random.choice(self.greetinglist)
 
 
@@ -149,6 +153,7 @@ class AggregationProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+        app.logger.debug("Processing Aggregation Request")
         splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
@@ -174,7 +179,7 @@ class AggregationProcessor(BaseProcessor):
         output = currentuser.getDefaultCurrency() + constants.SPACE + constants.ZERO
         for key, value in dc.iteritems():
             output = str(key) + constants.SPACE + str(value) + constants.LINEBREAK
-
+        app.logger.debug("Aggregation Request Processed")
         return output
 
     def getOwedShare(self, userList, currentUserId):
@@ -205,6 +210,7 @@ class ListTransactionProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+        app.logger.debug("Processing List Transaction Request")
         splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
@@ -240,7 +246,7 @@ class ListTransactionProcessor(BaseProcessor):
         for key, value in outputdc:
             output += constants.LINEBREAK + constants.DATE + constants.SPACE + str(key) + constants.LINEBREAK
             output += value
-
+        app.logger.debug("List Transaction Request Processed")
         return output
 
 
@@ -251,4 +257,5 @@ class UnknownProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+        app.logger.debug("Processing Unknown Request")
         raise BotException(random.choice(self.errorlist))

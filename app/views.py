@@ -49,6 +49,15 @@ def facebookVerify():
         abort(404)
 
 
+def checkFirstTimeLogin(data):
+    entryList = data['entry']
+    messagingList = entryList[0]['messaging']
+    messagingDictionary = messagingList[0]
+    if 'account_linking' in messagingDictionary:
+        return True
+    return  False
+
+
 @pages.route("/messenger", methods=['POST'])
 def facebookMessage():
     bot = ''
@@ -60,12 +69,17 @@ def facebookMessage():
             askUserToLogin(senderId)
         else:
             bot = ChatBotController(senderId)
+            if checkFirstTimeLogin(data):
+                bot.messenger.send(senderId, constants.LOGIN_SUCCESS)
+                return ('',204)
+
             bot.parse(data)
     except BotException as e:
         bot.messenger.send(senderId, str(e))
+        app.logger.debug("BotException Occured " + str(e))
     except Exception as e:
         bot.messenger.send(senderId, constants.GENERAL_ERROR)
-        
+        app.logger.debug("Exception Occured "+str(e))
     return ('',204)
 
 

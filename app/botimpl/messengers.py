@@ -1,4 +1,5 @@
 from app.bot import BaseMessenger
+from flask import current_app as app
 import requests
 import json
 
@@ -56,6 +57,7 @@ class FacebookMessenger(BaseMessenger):
 
 
     def sendLoginLink(self,receiverId):
+        app.logger.debug("Sending Login Link")
         messageData = {
             'recipient': {
                 'id': int(receiverId)
@@ -79,9 +81,11 @@ class FacebookMessenger(BaseMessenger):
         }
         
         res = requests.post(self.messageUrl, json = messageData)
+        if (res.status_code >= 400 and res.status_code <= 406):
+            app.logger.debug("error occured while sending Login Link ")
+            app.logger.debug(res.content)
 
     def send(self,receiverId,message):
-        
         messageData = {
             'recipient': {
                 'id': int(receiverId)
@@ -91,3 +95,7 @@ class FacebookMessenger(BaseMessenger):
             }
         }
         res = requests.post(self.messageUrl, json = messageData)
+        if(res.status_code>=400 and res.status_code<=406):
+            app.logger.debug("error occured while sending request ")
+            app.logger.debug(res.content)
+
