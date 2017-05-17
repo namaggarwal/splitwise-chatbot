@@ -9,11 +9,10 @@ class BotSplitwise(object):
 
     @staticmethod
     def getSplitwiseObj(user_id):
-        splitwise = Splitwise(app.config['APP_KEY'], app.config['APP_SECRET'])
+        splitwise = Splitwise(app.config['SPLITWISE_CONSUMER_KEY'], app.config['SPLITWISE_CONSUMER_SECRET'])
         user = User.getUserById(user_id)
-        splitwise.setAccessToken(
-            {
-                "oauth_token": user.splitwise_token, "oauth_token_secret": user.splitwise_token_secret
+        accessToken = {
+                "oauth_token": str(user.splitwise_token), "oauth_token_secret": str(user.splitwise_token_secret)
             }
-        )
+        splitwise.setAccessToken(accessToken)
         return splitwise

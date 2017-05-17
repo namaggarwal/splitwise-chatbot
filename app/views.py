@@ -4,6 +4,8 @@ from botimpl import ChatBotController, FacebookMessenger
 import json
 from splitwise import Splitwise
 import urllib
+from app.botimpl.botexception import BotException
+from  app.botimpl import constants
 
 
 pages = Blueprint('pages', __name__,template_folder='templates')
@@ -49,6 +51,8 @@ def facebookVerify():
 
 @pages.route("/messenger", methods=['POST'])
 def facebookMessage():
+    bot = ''
+    senderId = ''
     try:
         data = json.loads(request.data)
         senderId = FacebookMessenger.getSenderId(data)
@@ -57,8 +61,10 @@ def facebookMessage():
         else:
             bot = ChatBotController(senderId)
             bot.parse(data)
+    except BotException as e:
+        bot.messenger.send(senderId, str(e))
     except Exception as e:
-        print e
+        bot.messenger.send(senderId, constants.GENERAL_ERROR)
         
     return ('',204)
 
