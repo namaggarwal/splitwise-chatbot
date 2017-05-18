@@ -3,3 +3,4 @@ TRANSACTION_PROCESSOR = 'transaction'
 GREETING_PROCESSOR = 'greeting'
 AGGREGATION_PROCESSOR = 'aggregation'
 LISTEXPENSE_PROCESSOR = 'listexpense'
+DEBT_PROCESSOR = "debt"

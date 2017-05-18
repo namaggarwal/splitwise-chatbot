@@ -13,6 +13,17 @@ import processortype
 from flask import current_app as app
 
 
+def getInputFromRequest(input, param):
+    if constants.RESULT in input:
+        result = input[constants.RESULT]
+        if constants.PARAMETERS in result:
+            parameters = result[constants.PARAMETERS]
+            paramvalue = parameters[param]
+            return paramvalue
+
+    raise BotException(constants.GENERAL_ERROR)
+
+
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
     def __init__(self):
         super(SplitwiseBotProcessorFactory, self).__init__()
@@ -26,6 +37,8 @@ class SplitwiseBotProcessorFactory(BotProcessorFactory):
             return AggregationProcessor()
         elif action == processortype.LISTEXPENSE_PROCESSOR:
             return ListTransactionProcessor()
+        elif action == processortype.DEBT_PROCESSOR:
+            return DebtProcessor()
         else:
             return UnknownProcessor()
 
@@ -157,12 +170,10 @@ class AggregationProcessor(BaseProcessor):
         splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
-        try:
-            days = self.getInputFromRequest(input, constants.DAYS)
-        except Exception:
-            raise BotException(constants.GENERAL_ERROR)
-
-        date = datetime.now() - timedelta(days=days)
+        days = getInputFromRequest(input, constants.DAYS)
+        if days == "" or len(days)==0:
+            days = 7
+        date = datetime.now() - timedelta(days= int(days))
         limit = 100
         allExpense = self.getExpenses(splitwiseobj, limit, date)
         dc = {}
@@ -194,16 +205,6 @@ class AggregationProcessor(BaseProcessor):
         except Exception:
             raise BotException(constants.GENERAL_ERROR)
 
-    def getInputFromRequest(self, input, param):
-        if constants.RESULT in input:
-            result = input[constants.RESULT]
-            if constants.PARAMETERS in result:
-                parameters = result[constants.PARAMETERS]
-                days = int(parameters[param])
-                return days
-
-        raise BotException(constants.GENERAL_ERROR)
-
 
 class ListTransactionProcessor(BaseProcessor):
     def __init__(self):
@@ -213,14 +214,14 @@ class ListTransactionProcessor(BaseProcessor):
         app.logger.debug("Processing List Transaction Request")
         splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
         currentuser = splitwiseobj.getCurrentUser()
-        days = 7
         agg = AggregationProcessor()
-        days = agg.getInputFromRequest(input, constants.DAYS)
 
-        if days == 0:
+        days = 7
+        days = getInputFromRequest(input, constants.DAYS)
+        if days == "" or len(days)==0:
             days = 7
 
-        date = datetime.now() - timedelta(days=days)
+        date = datetime.now() - timedelta(days=int(days))
         limit = 1000
         allExpense = agg.getExpenses(splitwiseobj, limit, date)
         outputdc = {}
@@ -259,3 +260,58 @@ class UnknownProcessor(BaseProcessor):
     def process(self, input):
         app.logger.debug("Processing Unknown Request")
         raise BotException(random.choice(self.errorlist))
+
+
+class DebtProcessor(BaseProcessor):
+    def __init__(self):
+        pass
+
+    def process(self, input):
+        splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
+        grouplist = splitwiseobj.getGroups()
+        currentUser = splitwiseobj.getCurrentUser()
+        friendId = -1
+        name = getInputFromRequest(input, constants.NAME)
+        if not name == "" or len(name) == 0:
+            friendList = splitwiseobj.getFriends()
+            id = self.getFriendId(friendList, name)
+            if not id ==-1:
+                friendId = id
+
+
+        output = ''
+        totaldictionary = {}
+        for group in grouplist:
+            debtList = group.getSimplifiedDebts()
+            if debtList is None or len(debtList) == 0:
+                continue
+            output += constants.LINEBREAK + "In Group " + group.getName() + constants.LINEBREAK
+            for debts in debtList:
+                if debts.getFromUser() != currentUser.id:
+                    continue
+                if debts.getToUser() == friendId:
+                    currency = debts.getCurrencyCode()
+                    if currency in totaldictionary:
+                        totaldictionary[currency]+= float(debts.getAmount())
+                    else:
+                        totaldictionary[currency] = float(debts.getAmount())
+
+                user = splitwiseobj.getUser(debts.getToUser())
+                output += user.getFirstName() + constants.SPACE + str(debts.getCurrencyCode()) + \
+                          constants.SPACE + debts.getAmount() + constants.LINEBREAK
+
+        resp = ''
+        for key, value in totaldictionary.iteritems():
+            resp += str(key) + constants.SPACE + str(value)+constants.LINEBREAK
+
+        if not friendId == -1:
+            output = resp
+
+        return output
+
+    def getFriendId(self, friendList, name):
+        for friend in friendList:
+            if friend.getFirstName().lower() == name.lower():
+                return friend.getId()
+
+        return -1
