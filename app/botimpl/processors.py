@@ -159,7 +159,6 @@ class TransactionProcessor(BaseProcessor):
         groupl = group.lower()
         for groups in groupList:
             if groupl == groups.getName().lower():
-                print "Group Matched "+groupl+" and "+groups.getName()
                 return groups.getId()
 
         raise BotException(constants.ERROR_GROUP)
