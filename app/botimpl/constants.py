@@ -25,7 +25,7 @@ ERROR_NAME = "Please enter the name of the person"
 ERROR_SPLIT = "Please enter whether you paid or owe"
 ERROR_WRONG_SPLIT = "Wrong value of Split, please use either 'paid', 'owe' or 'equally'"
 GROUP = "group"
-ERROR_GROUP= "Sorry, the group you have mentioned didn't exist"
+ERROR_GROUP= "Sorry, the group you have mentioned doesn't exist"
 
 GREETING1 = "Hey, How can i help you?"
 GREETING2 = "Hello, may i help you in any way?"

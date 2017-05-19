@@ -72,7 +72,6 @@ def facebookMessage():
             if checkFirstTimeLogin(data):
                 bot.messenger.send(senderId, constants.LOGIN_SUCCESS)
                 return ('',204)
-
             bot.parse(data)
     except BotException as e:
         bot.messenger.send(senderId, str(e))

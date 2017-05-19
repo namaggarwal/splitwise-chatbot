@@ -84,6 +84,7 @@ class TransactionProcessor(BaseProcessor):
 
         group = str(getInputFromRequest(input, constants.GROUP))
         groupid = self.getGroupId(group, splitwiseobj.getGroups())
+
         expense = Expense()
         expense.setCost(amount)
 
@@ -96,7 +97,6 @@ class TransactionProcessor(BaseProcessor):
             description = constants.BOT
 
         expense.setDescription(description)
-
         # current user
         paid, owed = self.getdistribution(mode, amount)
         cuser = self.getExpenseUser(currentUser, paid, owed)
@@ -116,7 +116,7 @@ class TransactionProcessor(BaseProcessor):
                 break
 
         if not match:
-            return BotException(constants.NO_FRIEND_ERROR + name)
+            raise BotException(constants.NO_FRIEND_ERROR + constants.SPACE+ name)
 
         expense.setUsers(userlist)
         expense = splitwiseobj.createExpense(expense)
@@ -156,12 +156,13 @@ class TransactionProcessor(BaseProcessor):
     def getGroupId(self, group, groupList):
         if group is None or group == '' or len(group)==0:
             return -1
-        group = group.lower()
+        groupl = group.lower()
         for groups in groupList:
-            if group == groups.getName().lower():
+            if groupl == groups.getName().lower():
+                print "Group Matched "+groupl+" and "+groups.getName()
                 return groups.getId()
 
-        return BotException(constants.ERROR_GROUP)
+        raise BotException(constants.ERROR_GROUP)
 
 class GreetingProcessor(BaseProcessor):
     greetinglist = [constants.GREETING1, constants.GREETING2, constants.GREETING3]
