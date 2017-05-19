@@ -203,9 +203,12 @@ class AggregationProcessor(BaseProcessor):
                     dc[code] += float(owedshare)
                 else:
                     dc[code] = float(owedshare)
-        output = currentuser.getDefaultCurrency() + constants.SPACE + constants.ZERO
+        output = ''
         for key, value in dc.iteritems():
-            output = str(key) + constants.SPACE + str(value) + constants.LINEBREAK
+            output += str(key) + constants.SPACE + str(value) + constants.LINEBREAK
+
+        if output == '':
+            output = currentuser.getDefaultCurrency() + constants.SPACE + constants.ZERO
         app.logger.debug("Aggregation Request Processed")
         return output
 
@@ -303,18 +306,31 @@ class DebtProcessor(BaseProcessor):
                 continue
             output += constants.LINEBREAK + "In Group " + group.getName() + constants.LINEBREAK
             for debts in debtList:
-                if debts.getFromUser() != currentUser.id:
+                if (debts.getFromUser() != currentUser.id) and (debts.getToUser()!=currentUser.id):
                     continue
-                if debts.getToUser() == friendId:
+                if debts.getToUser() == friendId or debts.getFromUser() == friendId:
                     currency = debts.getCurrencyCode()
+                    debtamount = float(debts.getAmount())
                     if currency in totaldictionary:
-                        totaldictionary[currency]+= float(debts.getAmount())
+                        if debts.getToUser() == currentUser.getId():
+                            totaldictionary[currency] -= debtamount
+                        else:
+                            totaldictionary[currency] += debtamount
                     else:
-                        totaldictionary[currency] = float(debts.getAmount())
+                        if debts.getToUser() == currentUser.getId():
+                            totaldictionary[currency] = -debtamount
+                        else:
+                            totaldictionary[currency] = debtamount
+                amount = ""
+                if debts.getToUser() == currentUser.getId():
+                    user = splitwiseobj.getUser(debts.getFromUser())
+                    amount = "-" + debts.getAmount()
+                else:
+                    amount = debts.getAmount()
+                    user = splitwiseobj.getUser(debts.getToUser())
 
-                user = splitwiseobj.getUser(debts.getToUser())
                 output += user.getFirstName() + constants.SPACE + str(debts.getCurrencyCode()) + \
-                          constants.SPACE + debts.getAmount() + constants.LINEBREAK
+                          constants.SPACE + amount + constants.LINEBREAK
 
         resp = ''
         for key, value in totaldictionary.iteritems():
