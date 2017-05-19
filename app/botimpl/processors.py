@@ -11,17 +11,23 @@ from botexception import BotException
 import constants
 import processortype
 from flask import current_app as app
+import  pprint
 
 
-def getInputFromRequest(input, param):
+def getInputFromRequest(input, param, error = constants.GENERAL_ERROR, required = False):
     if constants.RESULT in input:
         result = input[constants.RESULT]
         if constants.PARAMETERS in result:
             parameters = result[constants.PARAMETERS]
-            paramvalue = parameters[param]
+            paramvalue = ''
+            if param in parameters:
+                paramvalue = parameters[param]
+            if paramvalue is not None and (paramvalue == "" or len(str(paramvalue))==0) and required:
+                raise BotException(error)
             return paramvalue
 
-    raise BotException(constants.GENERAL_ERROR)
+    if not required:
+        raise BotException(error)
 
 
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
@@ -55,33 +61,34 @@ class TransactionProcessor(BaseProcessor):
         friendslist = splitwiseobj.getFriends()
 
         userlist = []
-        split = constants.PAID
+
+        split = getInputFromRequest(input, constants.SPLIT, constants.ERROR_SPLIT, True)
+        split = split.lower()
+        if not split == constants.PAID or split == constants.OWE or split == constants.EQUALLY:
+            raise BotException(constants.ERROR_WRONG_SPLIT)
+
+        name = getInputFromRequest(input, constants.NAME, constants.ERROR_NAME, True)
+        currency = getInputFromRequest(input, constants.CURRENCY)
+
+        description = getInputFromRequest(input, constants.DESC)
+        if description is None or description == "" or len(str(description))==0:
+            description = constants.BOT
+
         amount = 0
-        name = ''
-        description = ''
+        try:
+            if constants.AMOUNT in currency:
+                amount = currency[constants.AMOUNT]
+        except Exception:
+            amount = getInputFromRequest(input, constants.AMOUNT, self.getAmountError(split),True)
 
-        if constants.RESULT in input:
-            result = input[constants.RESULT]
-            if constants.PARAMETERS in result:
-                parameters = result[constants.PARAMETERS]
 
-                if not constants.SPLIT in parameters or len(parameters[constants.SPLIT]) == 0:
-                    raise BotException(constants.ERROR_SPLIT)
-
-                split = str(parameters.get(constants.SPLIT, constants.PAID))
-
-                if not constants.AMOUNT in parameters or len(parameters[constants.AMOUNT]) == 0:
-                    raise BotException(self.getAmountError(split))
-
-                if not constants.NAME in parameters or len(parameters[constants.NAME]) == 0:
-                    raise BotException(constants.ERROR_NAME)
-
-                name = str(parameters.get(constants.NAME))
-                amount = str(parameters[constants.AMOUNT])
-                description = str(parameters.get(constants.DESC, constants.BOT))
-
+        group = str(getInputFromRequest(input, constants.GROUP))
+        groupid = self.getGroupId(group, splitwiseobj.getGroups())
         expense = Expense()
         expense.setCost(amount)
+
+        if not groupid == -1:
+            expense.setGroupId(groupid)
 
         mode = split.lower()
 
@@ -146,6 +153,15 @@ class TransactionProcessor(BaseProcessor):
         errors.append(constants.AMOUNT_ERROR3 + split + constants.QUESTION)
         return random.choice(errors)
 
+    def getGroupId(self, group, groupList):
+        if group is None or group == '' or len(group)==0:
+            return -1
+        group = group.lower()
+        for groups in groupList:
+            if group == groups.getName().lower():
+                return groups.getId()
+
+        return BotException(constants.ERROR_GROUP)
 
 class GreetingProcessor(BaseProcessor):
     greetinglist = [constants.GREETING1, constants.GREETING2, constants.GREETING3]
@@ -171,7 +187,7 @@ class AggregationProcessor(BaseProcessor):
         currentuser = splitwiseobj.getCurrentUser()
         days = 7
         days = getInputFromRequest(input, constants.DAYS)
-        if days == "" or len(days)==0:
+        if days == "" or len(str(days))==0:
             days = 7
         date = datetime.now() - timedelta(days= int(days))
         limit = 100
@@ -218,7 +234,7 @@ class ListTransactionProcessor(BaseProcessor):
 
         days = 7
         days = getInputFromRequest(input, constants.DAYS)
-        if days == "" or len(days)==0:
+        if days == "" or len(str(days))==0:
             days = 7
 
         date = datetime.now() - timedelta(days=int(days))

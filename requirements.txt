@@ -3,6 +3,6 @@ Flask-Bcrypt==0.7.1
 Flask-Login==0.4.0
 Flask-SQLAlchemy==2.2
 Flask-WTF==0.14.2
-splitwise==0.0.5
+splitwise==1.0.0
 apiai==1.2.3
 requests==2.14.2
