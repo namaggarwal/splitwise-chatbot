@@ -4,137 +4,203 @@ from splitwise.expense import Expense
 from splitwise.user import ExpenseUser
 from splitwise.group import Group
 from splitwise.debt import Debt
-import random
 from datetime import datetime, timedelta
 from botsplitwise import BotSplitwise
 from botexception import BotException
-import constants
-import processortype
+from constants import BotConstants, ErrorMessages
 from flask import current_app as app
-import  pprint
-
-
-def getInputFromRequest(input, param, error = constants.GENERAL_ERROR, required = False):
-    if constants.RESULT in input:
-        result = input[constants.RESULT]
-        if constants.PARAMETERS in result:
-            parameters = result[constants.PARAMETERS]
-            paramvalue = ''
-            if param in parameters:
-                paramvalue = parameters[param]
-            if paramvalue is not None and (paramvalue == "" or len(str(paramvalue))==0) and required:
-                raise BotException(error)
-            return paramvalue
-
-    if not required:
-        raise BotException(error)
+import random
 
 
 class SplitwiseBotProcessorFactory(BotProcessorFactory):
+
+    class ProcessorType(object):
+        '''
+        Processor Type
+        '''
+        TRANSACTION_PROCESSOR = 'transaction'
+        GREETING_PROCESSOR = 'greeting'
+        AGGREGATION_PROCESSOR = 'aggregation'
+        LISTEXPENSE_PROCESSOR = 'listexpense'
+        DEBT_PROCESSOR = "debt"
+
     def __init__(self):
         super(SplitwiseBotProcessorFactory, self).__init__()
 
     def getProcessor(self, action):
-        if action == processortype.TRANSACTION_PROCESSOR:
+        
+        if action == SplitwiseBotProcessorFactory.ProcessorType.TRANSACTION_PROCESSOR:
             return TransactionProcessor()
-        elif action == processortype.GREETING_PROCESSOR:
+
+        elif action == SplitwiseBotProcessorFactory.ProcessorType.GREETING_PROCESSOR:
             return GreetingProcessor()
-        elif action == processortype.AGGREGATION_PROCESSOR:
+
+        elif action == SplitwiseBotProcessorFactory.ProcessorType.AGGREGATION_PROCESSOR:
             return AggregationProcessor()
-        elif action == processortype.LISTEXPENSE_PROCESSOR:
+
+        elif action == SplitwiseBotProcessorFactory.ProcessorType.LISTEXPENSE_PROCESSOR:
             return ListTransactionProcessor()
-        elif action == processortype.DEBT_PROCESSOR:
+
+        elif action == SplitwiseBotProcessorFactory.ProcessorType.DEBT_PROCESSOR:
             return DebtProcessor()
+
         else:
             return UnknownProcessor()
 
 
-class TransactionProcessor(BaseProcessor):
+class SplitwiseProcessor(BaseProcessor):
+
+    @staticmethod
+    def getInputFromRequest(input, param, error = ErrorMessages.GENERAL, required = False):
+        
+        if BotConstants.RESULT in input:
+           
+            result = input[BotConstants.RESULT]
+            
+            if BotConstants.PARAMETERS in result:
+                
+                parameters = result[BotConstants.PARAMETERS]
+
+                param_value = ''
+                if param in parameters:
+                    param_value = parameters[param]
+
+                if param_value is not None and (param_value == "" or len(str(param_value))==0) and required:
+                    raise BotException(error)
+
+                return param_value
+
+        if not required:
+            
+            raise BotException(error)
+    
+    @staticmethod
+    def getExpenses(splitwise_obj, limit, date):
+        try:
+            expenses = splitwise_obj.getExpenses(limit=limit, dated_after=date)
+            return expenses
+        except Exception:
+            raise BotException(ErrorMessages.GENERAL)
+    
+    @staticmethod
+    def getOwedShare(users, current_user_id):
+        for expense_user in users:
+            if expense_user.getId() == current_user_id:
+                return expense_user.getOwedShare()
+
+
+
+class TransactionProcessor(SplitwiseProcessor):
+
+    AMOUNT_ERRORS = [
+        "Please enter the amount",
+        "I don't know the amount you {split}?",
+        "How much did you {split}?"
+    ]
+
+    class SplitType(object):
+        
+        SPLIT = 'split'
+        PAID = 'paid'
+        OWE  = 'owe'
+
+        @staticmethod
+        def getSplitList():
+            return [TransactionProcessor.SplitType.SPLIT, TransactionProcessor.SplitType.PAID, TransactionProcessor.SplitType.OWE]
+
+            
+
+
     def __init__(self):
         pass
-
+    
     def process(self, input):
         app.logger.debug("Processing New Transaction Request")
-        output = constants.OUTPUT
-        splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
-        currentUser = splitwiseobj.getCurrentUser()
-        friendslist = splitwiseobj.getFriends()
 
-        userlist = []
+        output = BotConstants.NEW_EXPENSE_OUTPUT
+        splitwise_obj = BotSplitwise.getSplitwiseObj(input[BotConstants.USER_ID])
+        
+        current_user = splitwise_obj.getCurrentUser()
+        friends_list = splitwise_obj.getFriends()
 
-        split = getInputFromRequest(input, constants.SPLIT, constants.ERROR_SPLIT, True)
+        user_list = []
+        split = SplitwiseProcessor.getInputFromRequest(input, TransactionProcessor.SplitType.SPLIT, ErrorMessages.SPLIT, True)
         split = split.lower()
-        if not split == constants.PAID or split == constants.OWE or split == constants.EQUALLY:
-            raise BotException(constants.ERROR_WRONG_SPLIT)
 
-        name = getInputFromRequest(input, constants.NAME, constants.ERROR_NAME, True)
-        currency = getInputFromRequest(input, constants.CURRENCY)
+        if split not in TransactionProcessor.SplitType.getSplitList():
+            raise BotException(BotConstants.ERROR_WRONG_SPLIT)
 
-        description = getInputFromRequest(input, constants.DESC)
-        if description is None or description == "" or len(str(description))==0:
-            description = constants.BOT
+        name = SplitwiseProcessor.getInputFromRequest(input, BotConstants.NAME, ErrorMessages.NAME, True)
+        currency = SplitwiseProcessor.getInputFromRequest(input, BotConstants.CURRENCY)
+        description = SplitwiseProcessor.getInputFromRequest(input, BotConstants.DESCRIPTION)
+        
+        if description == "":
+            description = BotConstants.FROM_BOT
 
         amount = 0
-        try:
-            if constants.AMOUNT in currency:
-                amount = currency[constants.AMOUNT]
-        except Exception:
-            amount = getInputFromRequest(input, constants.AMOUNT, self.getAmountError(split),True)
 
-
-        group = str(getInputFromRequest(input, constants.GROUP))
-        groupid = self.getGroupId(group, splitwiseobj.getGroups())
+        if BotConstants.AMOUNT in currency:
+            amount = currency[BotConstants.AMOUNT]
+        else:
+            amount = SplitwiseProcessor.getInputFromRequest(input, BotConstants.AMOUNT, self.getAmountError(split),True)
+    
+        group = str(SplitwiseProcessor.getInputFromRequest(input, BotConstants.GROUP))
+        group_id = self.getGroupId(group, splitwise_obj.getGroups())
 
         expense = Expense()
         expense.setCost(amount)
 
-        if not groupid == -1:
-            expense.setGroupId(groupid)
+        if not group_id == -1:
+            expense.setGroupId(group_id)
 
         mode = split.lower()
 
-        if description is None or description == "" or len(description) == 0:
-            description = constants.BOT
-
         expense.setDescription(description)
+
         # current user
-        paid, owed = self.getdistribution(mode, amount)
-        cuser = self.getExpenseUser(currentUser, paid, owed)
-        userlist.append(cuser)
+        paid, owed = self.getDistribution(mode, amount)
+        expense_user = self.getExpenseUser(current_user, paid, owed)
+        user_list.append(expense_user)
 
         match = False
-        for friend in friendslist:
+        for friend in friends_list:
             if friend.getFirstName().lower() == name.lower():
-                expenseuser = self.getExpenseUser(friend, owed, paid)
+                expense_user = self.getExpenseUser(friend, owed, paid)
                 match = True
-                if mode != constants.PAID and mode != constants.OWE:
-                    expenseuser.setPaidShare(str(0))
-                    expenseuser.setOwedShare(str(owed))
+                if mode != TransactionProcessor.SplitType.PAID and mode != TransactionProcessor.SplitType.OWE:
+                    expense_user.setPaidShare(str(0))
+                    expense_user.setOwedShare(str(owed))
 
                 output += friend.getFirstName()
-                userlist.append(expenseuser)
+                user_list.append(expense_user)
                 break
 
         if not match:
-            raise BotException(constants.NO_FRIEND_ERROR + constants.SPACE+ name)
+            raise BotException(ErrorMessages.NO_FRIEND.format(name=name))
 
-        expense.setUsers(userlist)
-        expense = splitwiseobj.createExpense(expense)
-        if expense.getId() is None or len(str(expense.getId())) == 0:
-            raise BotException(constants.GENERAL_ERROR)
+        expense.setUsers(user_list)
+
+        expense = splitwise_obj.createExpense(expense)
+
+        if expense.getId() is None:
+            raise BotException(ErrorMessages.GENERAL)
+
         app.logger.debug("New Expense is created")
+
         return output
 
-    def getdistribution(self, mode, amount):
-        if mode == constants.PAID:
+    def getDistribution(self, mode, amount):
+        
+        if mode == TransactionProcessor.SplitType.PAID:
             paid = amount
             owed = 0
-        elif mode == constants.OWE:
+        elif mode == TransactionProcessor.SplitType.OWE:
             paid = 0
             owed = amount
         else:
             paid = amount
             owed = amount / 2.0
+        
         return paid, owed
 
     def getExpenseUser(self, friend, paid, owed):
@@ -142,39 +208,46 @@ class TransactionProcessor(BaseProcessor):
         user.setId(friend.getId())
         user.setPaidShare(str(paid))
         user.setOwedShare(str(owed))
+        
         return user
 
     def getAmountError(self, split):
         errors = []
-        if not split == constants.PAID or split == constants.OWE:
-            split = constants.WANT_TO_SPLIT
-        errors.append(constants.AMOUNT_ERROR1)
-        errors.append(constants.AMOUNT_ERROR2 + split)
-        errors.append(constants.AMOUNT_ERROR3 + split + constants.QUESTION)
-        return random.choice(errors)
+        if not split == TransactionProcessor.SplitType.PAID or split == TransactionProcessor.SplitType.OWE:
+            split = BotConstants.WANT_TO_SPLIT
 
-    def getGroupId(self, group, groupList):
-        if group is None or group == '' or len(group)==0:
+        return random.choice(TransactionProcessor.AMOUNT_ERRORS).format(split=split)
+
+    def getGroupId(self, group_name, groups):
+        
+        if group_name is None or group_name == '' or len(group_name)==0:
             return -1
-        groupl = group.lower()
-        for groups in groupList:
-            if groupl == groups.getName().lower():
-                return groups.getId()
+        group_name = group_name.lower()
+        for group in groups:
+            if group_name == group.getName().lower():
+                return group.getId()
 
-        raise BotException(constants.ERROR_GROUP)
+        raise BotException(ErrorMessages.GROUP)
 
-class GreetingProcessor(BaseProcessor):
-    greetinglist = [constants.GREETING1, constants.GREETING2, constants.GREETING3]
+class GreetingProcessor(SplitwiseProcessor):
+
+    greetings = [
+        "Hey, How can i help you?",
+        "Hello, may i help you in any way?",
+        "Hi, do you need any help?"
+    ]
 
     def __init__(self):
         pass
 
     def process(self, input):
         app.logger.debug("Processing Greeting Request")
-        return random.choice(self.greetinglist)
+
+        return random.choice(GreetingProcessor.greetings)
 
 
-class AggregationProcessor(BaseProcessor):
+class AggregationProcessor(SplitwiseProcessor):
+    
     LIMIT = 'limit'
     DAYS = 'days'
 
@@ -182,167 +255,174 @@ class AggregationProcessor(BaseProcessor):
         pass
 
     def process(self, input):
+
         app.logger.debug("Processing Aggregation Request")
-        splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
-        currentuser = splitwiseobj.getCurrentUser()
-        days = 7
-        days = getInputFromRequest(input, constants.DAYS)
+        
+        splitwise_obj = BotSplitwise.getSplitwiseObj(input[BotConstants.USER_ID])
+        current_user = splitwise_obj.getCurrentUser()
+        
+        days = SplitwiseProcessor.getInputFromRequest(input, BotConstants.DAYS)
+        
         if days == "" or len(str(days))==0:
             days = 7
-        date = datetime.now() - timedelta(days= int(days))
+        
         limit = 100
-        allExpense = self.getExpenses(splitwiseobj, limit, date)
-        dc = {}
+
+        date = datetime.now() - timedelta(days= int(days))
+        
+        allExpense = SplitwiseProcessor.getExpenses(splitwise_obj, limit, date)
+
+        expenses = {}
+        
         for expense in allExpense:
             if not expense.getDeletedAt() is None:
                 continue
-            owedshare = self.getOwedShare(expense.getUsers(), currentuser.getId())
-            if not owedshare is None:
-                code = expense.getCurrencyCode()
-                if code in dc:
-                    dc[code] += float(owedshare)
+            
+            owed_share = SplitwiseProcessor.getOwedShare(expense.getUsers(), current_user.getId())
+            
+            if not owed_share is None:
+                
+                currency_code = expense.getCurrencyCode()
+                if currency_code in expenses:
+                    expenses[currency_code] += float(owed_share)
                 else:
-                    dc[code] = float(owedshare)
+                    expenses[currency_code] = float(owed_share)
+        
         output = ''
-        for key, value in dc.iteritems():
-            output += str(key) + constants.SPACE + str(value) + constants.LINEBREAK
+        for key, value in expenses.iteritems():
+            output += str(key) + BotConstants.SPACE + str(value) + BotConstants.LINEBREAK
 
         if output == '':
-            output = currentuser.getDefaultCurrency() + constants.SPACE + constants.ZERO
+            output = current_user.getDefaultCurrency() + BotConstants.SPACE + BotConstants.ZERO
+        
         app.logger.debug("Aggregation Request Processed")
+        
         return output
 
-    def getOwedShare(self, userList, currentUserId):
-        for expenseuser in userList:
-            if expenseuser.getId() == currentUserId:
-                return expenseuser.getOwedShare()
-
-    def getExpenses(self, splitwiseobj, limit, date):
-        try:
-            allExpense = splitwiseobj.getExpenses(limit=limit, dated_after=date)
-            return allExpense
-        except Exception:
-            raise BotException(constants.GENERAL_ERROR)
-
-
-class ListTransactionProcessor(BaseProcessor):
+class ListTransactionProcessor(SplitwiseProcessor):
+    
     def __init__(self):
         pass
 
     def process(self, input):
         app.logger.debug("Processing List Transaction Request")
-        splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
-        currentuser = splitwiseobj.getCurrentUser()
-        agg = AggregationProcessor()
+        
+        splitwise_obj = BotSplitwise.getSplitwiseObj(input[BotConstants.USER_ID])
+        current_user = splitwise_obj.getCurrentUser()
+        
 
-        days = 7
-        days = getInputFromRequest(input, constants.DAYS)
+        days = SplitwiseProcessor.getInputFromRequest(input, BotConstants.DAYS)
         if days == "" or len(str(days))==0:
             days = 7
+        limit = 1000
 
         date = datetime.now() - timedelta(days=int(days))
-        limit = 1000
-        allExpense = agg.getExpenses(splitwiseobj, limit, date)
-        outputdc = {}
+
+        allExpense = SplitwiseProcessor.getExpenses(splitwise_obj, limit, date)
+
+        expenses = {}
+
         totalOwe = 0
         for expense in allExpense:
-            if not expense.getDeletedAt() is None:
+            if expense.getDeletedAt():
                 continue
-            owedshare = agg.getOwedShare(expense.getUsers(), currentuser.getId())
+            
+            owedshare = SplitwiseProcessor.getOwedShare(expense.getUsers(), current_user.getId())
+            
             if owedshare is None:
                 continue
+            
             totalOwe += float(owedshare)
-            date = expense.getDate()
-            dateob = datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-            dateob = dateob.strftime('%d-%m-%Y')
-            output = expense.getDescription() + constants.SPACE + constants.EQUAL + constants.SPACE + \
-                     expense.getCurrencyCode() + constants.SPACE + str(owedshare) + constants.LINEBREAK
-            if dateob in outputdc:
-                outputdc[dateob] += output
+            date = datetime.strptime(expense.getDate(), '%Y-%m-%dT%H:%M:%SZ').strftime('%d-%m-%Y')
+            output = expense.getDescription() + BotConstants.SPACE + BotConstants.EQUAL + BotConstants.SPACE + \
+                     expense.getCurrencyCode() + BotConstants.SPACE + str(owedshare) + BotConstants.LINEBREAK
+            if date in expenses:
+                expenses[date] += output
             else:
-                outputdc[dateob] = output
+                expenses[date] = output
+
         output = ""
-        outputdc = sorted(outputdc.items())
-        for key, value in outputdc:
-            output += constants.LINEBREAK + constants.DATE + constants.SPACE + str(key) + constants.LINEBREAK
+        expenses = sorted(expenses.items())
+
+        for date, value in expenses:
+            output += BotConstants.LINEBREAK + BotConstants.DATE + BotConstants.SPACE + str(date) + BotConstants.LINEBREAK
             output += value
         app.logger.debug("List Transaction Request Processed")
         return output
 
 
-class UnknownProcessor(BaseProcessor):
-    errorlist = [constants.UNKNOWN_ERROR2, constants.UNKNOWN_ERROR1]
+class UnknownProcessor(SplitwiseProcessor):
 
     def __init__(self):
         pass
 
     def process(self, input):
         app.logger.debug("Processing Unknown Request")
-        raise BotException(random.choice(self.errorlist))
+        raise BotException(random.choice(ErrorMessages.UNKNOWN))
 
 
-class DebtProcessor(BaseProcessor):
+class DebtProcessor(SplitwiseProcessor):
     def __init__(self):
         pass
 
     def process(self, input):
-        splitwiseobj = BotSplitwise.getSplitwiseObj(input[constants.USER_ID])
-        grouplist = splitwiseobj.getGroups()
-        currentUser = splitwiseobj.getCurrentUser()
-        friendId = -1
-        name = getInputFromRequest(input, constants.NAME)
+        splitwise_obj = BotSplitwise.getSplitwiseObj(input[BotConstants.USER_ID])
+        groups = splitwise_obj.getGroups()
+        current_user = splitwise_obj.getCurrentUser()
+        friend_id = -1
+        name = SplitwiseProcessor.getInputFromRequest(input, BotConstants.NAME)
+        
         if not name == "" or len(name) == 0:
-            friendList = splitwiseobj.getFriends()
-            id = self.getFriendId(friendList, name)
-            if not id ==-1:
-                friendId = id
-
+            friends = splitwise_obj.getFriends()
+            id = self.getFriendId(friends, name)
+            if not id == -1:
+                friend_id = id
 
         output = ''
-        totaldictionary = {}
-        for group in grouplist:
-            debtList = group.getSimplifiedDebts()
-            if debtList is None or len(debtList) == 0:
+        expenses = {}
+        for group in groups:
+            debts = group.getSimplifiedDebts()
+            if debts is None:
                 continue
-            output += constants.LINEBREAK + "In Group " + group.getName() + constants.LINEBREAK
-            for debts in debtList:
-                if (debts.getFromUser() != currentUser.id) and (debts.getToUser()!=currentUser.id):
+            output += BotConstants.LINEBREAK + "In Group " + group.getName() + BotConstants.LINEBREAK
+            for debt in debts:
+                if (debt.getFromUser() != current_user.id) and (debt.getToUser()!=current_user.id):
                     continue
-                if debts.getToUser() == friendId or debts.getFromUser() == friendId:
-                    currency = debts.getCurrencyCode()
-                    debtamount = float(debts.getAmount())
-                    if currency in totaldictionary:
-                        if debts.getToUser() == currentUser.getId():
-                            totaldictionary[currency] -= debtamount
+                if debt.getToUser() == friend_id or debt.getFromUser() == friend_id:
+                    currency = debt.getCurrencyCode()
+                    debtamount = float(debt.getAmount())
+                    if currency in expenses:
+                        if debt.getToUser() == current_user.getId():
+                            expenses[currency] -= debtamount
                         else:
-                            totaldictionary[currency] += debtamount
+                            expenses[currency] += debtamount
                     else:
-                        if debts.getToUser() == currentUser.getId():
-                            totaldictionary[currency] = -debtamount
+                        if debt.getToUser() == current_user.getId():
+                            expenses[currency] = -debtamount
                         else:
-                            totaldictionary[currency] = debtamount
+                            expenses[currency] = debtamount
                 amount = ""
-                if debts.getToUser() == currentUser.getId():
-                    user = splitwiseobj.getUser(debts.getFromUser())
-                    amount = "-" + debts.getAmount()
+                if debt.getToUser() == current_user.getId():
+                    user = splitwise_obj.getUser(debt.getFromUser())
+                    amount = "-" + debt.getAmount()
                 else:
-                    amount = debts.getAmount()
-                    user = splitwiseobj.getUser(debts.getToUser())
+                    amount = debt.getAmount()
+                    user = splitwise_obj.getUser(debt.getToUser())
 
-                output += user.getFirstName() + constants.SPACE + str(debts.getCurrencyCode()) + \
-                          constants.SPACE + amount + constants.LINEBREAK
+                output += user.getFirstName() + BotConstants.SPACE + str(debt.getCurrencyCode()) + \
+                          BotConstants.SPACE + amount + BotConstants.LINEBREAK
 
         resp = ''
-        for key, value in totaldictionary.iteritems():
-            resp += str(key) + constants.SPACE + str(value)+constants.LINEBREAK
+        for key, value in expenses.iteritems():
+            resp += str(key) + BotConstants.SPACE + str(value)+BotConstants.LINEBREAK
 
-        if not friendId == -1:
+        if not friend_id == -1:
             output = resp
 
         return output
 
-    def getFriendId(self, friendList, name):
-        for friend in friendList:
+    def getFriendId(self, friends, name):
+        for friend in friends:
             if friend.getFirstName().lower() == name.lower():
                 return friend.getId()
 

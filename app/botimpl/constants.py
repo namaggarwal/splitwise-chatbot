@@ -1,52 +1,59 @@
-# GENERAL CONSTANTS
-DESC = "description"
-SPLIT = "split"
-PAID = "paid"
-OWE = "owe"
-AMOUNT = 'amount'
-CURRENCY = "currency"
-EQUALLY = "equally"
-RESULT = "result"
-PARAMETERS = "parameters"
-LIMIT = "limit"
-DAYS = "days"
-SPACE = " "
-FOR = "for"
-DATE = "Date:"
-LINEBREAK = "\n"
-USER_ID = "user_id"
-QUESTION = "?"
 
-# Transaction Processor
-NO_FRIEND_ERROR = "You don't have any friend named"
-BOT = "From Bot"
-NAME = "name"
-ERROR_NAME = "Please enter the name of the person"
-ERROR_SPLIT = "Please enter whether you paid or owe"
-ERROR_WRONG_SPLIT = "Wrong value of Split, please use either 'paid', 'owe' or 'equally'"
-GROUP = "group"
-ERROR_GROUP= "Sorry, the group you have mentioned doesn't exist"
+class BotConstants(object):
 
-GREETING1 = "Hey, How can i help you?"
-GREETING2 = "Hello, may i help you in any way?"
-GREETING3 = "Hi, do you need any help?"
+    # GENERAL CONSTANTS
+    DESCRIPTION = "description"
+    SPLIT = "split"
+    PAID = "paid"
+    OWE = "owe"
+    AMOUNT = 'amount'
+    CURRENCY = "currency"
+    EQUALLY = "equally"
+    RESULT = "result"
+    PARAMETERS = "parameters"
+    LIMIT = "limit"
+    DAYS = "days"
+    SPACE = " "
+    FOR = "for"
+    DATE = "Date:"
+    LINEBREAK = "\n"
+    USER_ID = "user_id"
+    QUESTION = "?"
+    FROM_BOT = "From Bot"
+    # Transaction Processor
+    NAME = "name"
+    GROUP = "group"
 
-AMOUNT_ERROR1 = "Please enter the amount"
-AMOUNT_ERROR2 = "I didn't find the amount you "
-AMOUNT_ERROR3 = "how much did you "
-WANT_TO_SPLIT = "want to split "
-OUTPUT = "New Expense has been added between You and "
+    WANT_TO_SPLIT = "want to split "
+    NEW_EXPENSE_OUTPUT = "New Expense has been added between You and "
 
-# Aggregation Processor
-ZERO = "0.0"
-GENERAL_ERROR = "Sorry, some error has occured. Please try again. "
+    # Aggregation Processor
+    ZERO = "0.0"
 
-# List Processor
-EQUAL = "="
+    # List Processor
+    EQUAL = "="
 
-# Unknown Processor
-UNKNOWN_ERROR1 = "Sorry, I didn't understand that"
-UNKNOWN_ERROR2 = "Apologies, I missed that, could you please repeat"
+    LOGIN_SUCCESS = "You are logged in."
 
 
-LOGIN_SUCCESS = "You are logged in."
+
+
+
+
+
+class ErrorMessages(object):
+
+    UNKNOWN = [
+        "Sorry, I didn't understand that",
+        "Can your frame that in other way",
+        "I don't know that yet",
+        "Sorry, I can't answer that now"
+    ]
+
+    NAME = "Please enter the name of the person"
+    SPLIT = "Please enter whether you paid or owe"
+    WRONG_SPLIT = "Wrong value of Split, please use either 'paid', 'owe' or 'equally'"
+    GENERAL = "Sorry, some error has occured. Please try again. "
+    NO_FRIEND = "You don't have any friend named {name}"
+    GROUP= "Sorry, the group you have mentioned doesn't exist"
+

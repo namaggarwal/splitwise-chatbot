@@ -5,19 +5,17 @@ import json
 from splitwise import Splitwise
 import urllib
 from app.botimpl.botexception import BotException
-from  app.botimpl import constants
+from  app.botimpl.constants import BotConstants, ErrorMessages
 
 
 pages = Blueprint('pages', __name__,template_folder='templates')
 
 FACEBOOK_ACCOUNT_LINKING_TOKEN = "account_linking_token"
 FACEBOOK_REDIRECT_URI = "redirect_uri"
-
 SPLITWISE_SECRET = "splitwise_secret"
 SPLITWISE_OAUTH_TOKEN = "oauth_token"
 SPLITWISE_OAUTH_VERIFIER = "oauth_verifier"
 SPLITWISE_OAUTH_TOKEN_SECRET = "oauth_token_secret"
-
 
 
 def askUserToLogin(senderId):
@@ -70,14 +68,14 @@ def facebookMessage():
         else:
             bot = ChatBotController(senderId)
             if checkFirstTimeLogin(data):
-                bot.messenger.send(senderId, constants.LOGIN_SUCCESS)
+                bot.messenger.send(senderId, BotConstants.LOGIN_SUCCESS)
                 return ('',204)
             bot.parse(data)
     except BotException as e:
         bot.messenger.send(senderId, str(e))
         app.logger.debug("BotException Occured " + str(e))
     except Exception as e:
-        bot.messenger.send(senderId, constants.GENERAL_ERROR)
+        bot.messenger.send(senderId, ErrorMessages.GENERAL)
         app.logger.debug("Exception Occured "+str(e))
     return ('',204)
 
@@ -104,15 +102,15 @@ def splitwiseLogin():
         sObj = Splitwise(app.config["SPLITWISE_CONSUMER_KEY"],app.config["SPLITWISE_CONSUMER_SECRET"])
         access_token = sObj.getAccessToken(oauth_token,session[SPLITWISE_SECRET],oauth_verifier)
         messenger = FacebookMessenger(app.config['FACEBOOK_PAGE_ACCESS_TOKEN'],app.config['FACEBOOK_VERIFY_TOKEN'])
-        facebookReceipientId = messenger.getRecepientId(session[FACEBOOK_ACCOUNT_LINKING_TOKEN])
+        facebook_receipient_id = messenger.getRecepientId(session[FACEBOOK_ACCOUNT_LINKING_TOKEN])
 
         authorization_code = None
-        if facebookReceipientId is not None:
+        if facebook_receipient_id is not None:
 
-            user = User.query.filter_by(user_id=facebookReceipientId).first()
+            user = User.query.filter_by(user_id=facebook_receipient_id).first()
             if not user:
                 user = User()
-                user.user_id = str(facebookReceipientId)
+                user.user_id = str(facebook_receipient_id)
             user.splitwise_token = access_token[SPLITWISE_OAUTH_TOKEN]
             user.splitwise_token_secret = access_token[SPLITWISE_OAUTH_TOKEN_SECRET]
             user.save()
