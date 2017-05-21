@@ -1,5 +1,5 @@
 from app.bot import BaseMessenger
-from flask import current_app as app
+from flask import url_for, current_app as app
 import requests
 import json
 
@@ -58,6 +58,7 @@ class FacebookMessenger(BaseMessenger):
 
     def sendLoginLink(self,receiverId):
         app.logger.debug("Sending Login Link")
+        url = url_for("pages.splitwiseLogin",_external = True)
         messageData = {
             'recipient': {
                 'id': int(receiverId)
@@ -72,7 +73,7 @@ class FacebookMessenger(BaseMessenger):
                         "buttons":[
                             {
                                 "type": "account_link",
-                                "url": "https://4e042adf.ngrok.io/splitwise"
+                                "url": url
                             }
                         ]
                     }
