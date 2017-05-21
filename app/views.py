@@ -4,7 +4,7 @@ from botimpl import ChatBotController, FacebookMessenger
 import json
 from splitwise import Splitwise
 import urllib
-from app.botimpl.botexception import BotException
+from app.botimpl.botexception import BotException, LoginException
 from  app.botimpl.constants import BotConstants, ErrorMessages
 
 
@@ -63,14 +63,14 @@ def facebookMessage():
     try:
         data = json.loads(request.data)
         senderId = FacebookMessenger.getSenderId(data)
-        if not User.getUserById(senderId):
-            askUserToLogin(senderId)
-        else:
-            bot = ChatBotController(senderId)
-            if checkFirstTimeLogin(data):
-                bot.messenger.send(senderId, BotConstants.LOGIN_SUCCESS)
-                return ('',204)
-            bot.parse(data)
+        bot = ChatBotController(senderId)
+        if checkFirstTimeLogin(data):
+            bot.messenger.send(senderId, BotConstants.LOGIN_SUCCESS)
+            return ('', 204)
+        bot.parse(data)
+    except LoginException as e:
+        askUserToLogin(senderId)
+        app.logger.debug("Asking user to login")
     except BotException as e:
         bot.messenger.send(senderId, str(e))
         app.logger.debug("BotException Occured " + str(e))

@@ -35,6 +35,7 @@ class BotConstants(object):
 
     LOGIN_SUCCESS = "You are logged in."
     In_GROUP = "In Group"
+    HELP = "help"
 
 
 
