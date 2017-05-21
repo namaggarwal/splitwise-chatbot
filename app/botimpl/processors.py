@@ -371,20 +371,24 @@ class DebtProcessor(SplitwiseProcessor):
         current_user = splitwise_obj.getCurrentUser()
         friend_id = -1
         name = SplitwiseProcessor.getInputFromRequest(input, BotConstants.NAME)
-        
+
         if not name == "" or len(name) == 0:
             friends = splitwise_obj.getFriends()
             id = self.getFriendId(friends, name)
             if not id == -1:
                 friend_id = id
 
-        output = ''
+        output_group_heading = ''
         expenses = {}
+        output = ''
         for group in groups:
             debts = group.getSimplifiedDebts()
+            debt_found = False
             if debts is None:
                 continue
-            output += BotConstants.LINEBREAK + "In Group " + group.getName() + BotConstants.LINEBREAK
+            output_group_heading = BotConstants.LINEBREAK + BotConstants.In_GROUP + BotConstants.SPACE \
+                                    + group.getName() + BotConstants.LINEBREAK
+            debt_output = ''
             for debt in debts:
                 if (debt.getFromUser() != current_user.id) and (debt.getToUser()!=current_user.id):
                     continue
@@ -402,6 +406,7 @@ class DebtProcessor(SplitwiseProcessor):
                         else:
                             expenses[currency] = debtamount
                 amount = ""
+                debt_found = True
                 if debt.getToUser() == current_user.getId():
                     user = splitwise_obj.getUser(debt.getFromUser())
                     amount = "-" + debt.getAmount()
@@ -409,8 +414,10 @@ class DebtProcessor(SplitwiseProcessor):
                     amount = debt.getAmount()
                     user = splitwise_obj.getUser(debt.getToUser())
 
-                output += user.getFirstName() + BotConstants.SPACE + str(debt.getCurrencyCode()) + \
+                debt_output += user.getFirstName() + BotConstants.SPACE + str(debt.getCurrencyCode()) + \
                           BotConstants.SPACE + amount + BotConstants.LINEBREAK
+            if debt_found:
+                output += output_group_heading + debt_output
 
         resp = ''
         for key, value in expenses.iteritems():

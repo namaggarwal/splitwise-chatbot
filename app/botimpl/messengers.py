@@ -72,7 +72,7 @@ class FacebookMessenger(BaseMessenger):
                         "buttons":[
                             {
                                 "type": "account_link",
-                                "url": "https://18b35d7e.ngrok.io/splitwise"
+                                "url": "https://4e042adf.ngrok.io/splitwise"
                             }
                         ]
                     }
