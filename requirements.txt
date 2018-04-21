@@ -2,6 +2,8 @@ Flask==0.12
 Flask-Bcrypt==0.7.1
 Flask-SQLAlchemy==2.2
 Flask-WTF==0.14.2
+flask-login
 splitwise==1.0.0
 apiai==1.2.3
 requests==2.14.2
+
